@@ -5,7 +5,6 @@ __all__ = ["SceneFileWriter"]
 import datetime
 import json
 import os
-import shlex
 import shutil
 import subprocess
 from pathlib import Path
@@ -360,22 +359,6 @@ class SceneFileWriter:
             frame = frame_or_renderer
             if write_to_movie():
                 self.writing_process.stdin.write(frame.tobytes())
-                if self.writing_process.returncode != 0:
-                    stdout, stderr = self.writing_process.communicate()
-                    frame_bytes_path = '/tmp/theframe.bin'
-                    with open(frame_bytes_path, 'wb') as f:
-                        f.write(frame.tobytes())
-                    error_msg = (("Command exited with status %s output was:\n"
-                                 "STDOUT>%s\n"
-                                 "STDERR>%s\n"
-                                 "Current frame saved as %s") %
-                                 (self.writing_process.returncode,
-                                  stdout,
-                                  stderr,
-                                  frame_bytes_path
-                                 ))
-                    logger.error(error_msg)
-                    raise Exception
             if is_png_format() and not config["dry_run"]:
                 self.output_image_from_array(frame)
 
@@ -509,7 +492,6 @@ class SceneFileWriter:
             "-metadata",
             f"comment=Rendered with Manim Community v{__version__}",
         ]
-
         if config.renderer == "opengl":
             command += ["-vf", "vflip"]
         if is_webm_format():
@@ -520,8 +502,7 @@ class SceneFileWriter:
         else:
             command += ["-vcodec", "libx264", "-pix_fmt", "yuv420p"]
         command += [file_path]
-        logger.debug("Running command: %s" % shlex.join(command))
-        self.writing_process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.writing_process = subprocess.Popen(command, stdin=subprocess.PIPE)
 
     def close_movie_pipe(self):
         """
